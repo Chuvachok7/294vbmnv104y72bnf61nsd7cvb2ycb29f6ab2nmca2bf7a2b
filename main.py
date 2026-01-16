@@ -5,18 +5,19 @@ import sys
 import uuid
 import html
 import asyncio
+import tempfile
 import traceback
+import subprocess
+from os import getenv
 from dotenv import load_dotenv
 from time import perf_counter_ns
-from aiogram.filters import Filter
 from aiogram import Bot, Dispatcher, F
+from aiogram.filters import Filter, Command
+from dotenv import find_dotenv, load_dotenv
 from datetime import timedelta, datetime, timezone
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters.logic import invert_f, and_f, or_f
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, BufferedInputFile
-
-from os import getenv
-from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
 API_TOKEN = getenv('BOT_TOKEN')
@@ -441,6 +442,42 @@ async def _cancel_eval(call: CallbackQuery):
         )
         EVAL_TASKS.pop(task_id, None)
     await call.answer()
+
+
+@dp.message(CWithArgsMultiline('sh'), AllowedChats())
+async def _sh(m: Message):
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        stdout, stderr = await proc.communicate()
+        output = (stdout + stderr).decode(errors="ignore").strip()
+
+        if not output:
+            output = "[пустой вывод]"
+
+        # Если вывод помещается в сообщение
+        if len(output) <= 3900:
+            await m.reply(
+                f"<blockquote><pre>{output}</pre></blockquote>"
+            )
+        else:
+            # Отправка как файл из памяти
+            file = BufferedInputFile(
+                output.encode("utf-8", errors="ignore"),
+                filename="output.txt"
+            )
+
+            await m.reply_document(
+                file,
+                caption="📄 Вывод слишком большой, отправляю файлом"
+            )
+
+    except Exception as e:
+        await m.reply(f"❌ Ошибка:\n<pre>{e}</pre>")
 
 
 async def main():
