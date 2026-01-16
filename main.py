@@ -285,6 +285,27 @@ def parse_flags(text: str):
 
 
 def _format_traceback(exc_type, exc_value, tb, code: str) -> str:
+    # Special handling for SyntaxError (and its subclasses like IndentationError)
+    if issubclass(exc_type, SyntaxError):
+        # Check if the error is in the user's code (filename 'exec' comes from ast.parse(..., "exec"))
+        if exc_value.filename in ('<string>', 'exec'):
+            ln = exc_value.lineno
+            line_content = exc_value.text if exc_value.text else ''
+            
+            # Fallback if text is not available in exception
+            if not line_content and ln is not None:
+                lines = code.splitlines()
+                if 0 <= ln - 1 < len(lines):
+                    line_content = lines[ln - 1]
+
+            result = []
+            result.append(
+                f'👉 "Input Code", line {ln}, in module\n'
+                f'    {escape_html(line_content.strip())}'
+            )
+            result.append(f'🚫 {escape_html(exc_type.__name__)}: {escape_html(exc_value.msg)}')
+            return '<pre><code class="language-Python">' + '\n'.join(result) + '</code></pre>'
+
     result = ['Traceback (most recent call last):']
     frames = traceback.extract_tb(tb)
 
@@ -297,6 +318,10 @@ def _format_traceback(exc_type, exc_value, tb, code: str) -> str:
         # Также можно скрыть обертку запуска, если нужно (опционально)
         if frame.name == '_execute_eval' and frame.filename != '<string>':
             continue
+        
+        # Skip internal ast.py frames (just in case)
+        if 'ast.py' in frame.filename:
+             continue
 
         if frame.filename == '<string>':
             lines = code.splitlines()
