@@ -25,7 +25,7 @@ if not API_TOKEN:
     print("Ошибка: BOT_TOKEN не найден в .env")
     sys.exit(1)
 
-ALLOWED_CHATS = [-1003569460645, -1002264373639, 5235155365]
+ALLOWED_CHATS = [-1003569460645, -1002264373639]
 CLEAN_TEXT = False
 
 def escape_html(text: str, /) -> str:
