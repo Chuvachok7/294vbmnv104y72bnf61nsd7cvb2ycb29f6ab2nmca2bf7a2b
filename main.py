@@ -11,8 +11,8 @@ import subprocess
 from os import getenv
 from dotenv import load_dotenv
 from time import perf_counter_ns
+from aiogram.filters import Filter
 from aiogram import Bot, Dispatcher, F
-from aiogram.filters import Filter, Command
 from dotenv import find_dotenv, load_dotenv
 from datetime import timedelta, datetime, timezone
 from aiogram.client.default import DefaultBotProperties
@@ -444,8 +444,11 @@ async def _cancel_eval(call: CallbackQuery):
     await call.answer()
 
 
-@dp.message(CWithArgsMultiline('sh'), AllowedChats())
-async def _sh(m: Message):
+@dp.message(CWithArgsMultiline('ssh'), AllowedChats())
+async def _ssh(m: Message):
+    cmd = m.text.replace("/ssh", "", 1).strip()
+    if not cmd:
+        return await m.answer("Укажите команду")
     try:
         proc = await asyncio.create_subprocess_shell(
             cmd,
@@ -461,7 +464,7 @@ async def _sh(m: Message):
 
         # Если вывод помещается в сообщение
         if len(output) <= 3900:
-            await m.reply(
+            await m.answer(
                 f"<blockquote><pre>{output}</pre></blockquote>"
             )
         else:
@@ -471,13 +474,13 @@ async def _sh(m: Message):
                 filename="output.txt"
             )
 
-            await m.reply_document(
+            await m.answer_document(
                 file,
                 caption="📄 Вывод слишком большой, отправляю файлом"
             )
 
     except Exception as e:
-        await m.reply(f"❌ Ошибка:\n<pre>{e}</pre>")
+        await m.answer(f"❌ Ошибка:\n<pre>{e}</pre>")
 
 
 async def main():
