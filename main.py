@@ -448,6 +448,36 @@ async def _cancel_eval(call: CallbackQuery):
         EVAL_TASKS.pop(task_id, None)
     await call.answer()
 
+@dp.message(CWithArgsMultiline('ssh'))
+async def _ssh(m: Message):
+    cmd = m.text.lstrip('./!').replace('ssh', '', 1).strip()
+    if not cmd:
+        return await m.answer('Укажи команду')
+
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        stdout, stderr = await proc.communicate()
+        output = (stdout + stderr).decode(errors='ignore').strip()
+
+        if not output:
+            output = '[пустой вывод]'
+
+        if len(output) <= 3900:
+            await m.answer(f'<blockquote><pre>{output}</pre></blockquote>')
+        else:
+            file = BufferedInputFile(
+                output.encode('utf-8', errors='ignore'),
+                filename='output.txt'
+            )
+
+            await m.answer_document(file, caption='📄 Вывод слишком большой, отправляю файлом')
+    except Exception as e:
+        await m.answer(f'❌ Ошибка:\n<pre>{e}</pre>')
 
 async def main():
     global BOT_USERNAME
